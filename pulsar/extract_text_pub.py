@@ -4,6 +4,7 @@ import logging
 import pulsar
 import boto3
 import json
+from queue import Queue
 
 __author__ = "Phat Loc"
 __copyright__ = "Phat Loc"
@@ -75,7 +76,7 @@ def fetch_s3_keys(cik: str = "315852", form_type: str = "8-K", date_str: str = "
     assert (form_type is None and date_str is None) or (form_type is not None)
     prefix_parts = [p for p in [cik, form_type, date_str] if p is not None]
     if len(prefix_parts) > 1:
-        prefix = "|".join(prefix_parts)
+        prefix = "|".join(prefix_parts) + "|"
     else:
         prefix = cik + "|"
 
@@ -87,52 +88,47 @@ def fetch_s3_keys(cik: str = "315852", form_type: str = "8-K", date_str: str = "
     s3_keys = []
 
     for page in page_iterator:
-        s3_keys.extend(map(lambda s3_file: {"bucket": bucket, "key": s3_file.get('Key')}, page['Contents']))
+        if page.get('Contents'):
+            s3_keys.extend(map(lambda s3_file: {"bucket": bucket, "key": s3_file.get('Key')}, page['Contents']))
 
     return s3_keys
 
 
-def s3_files_to_extract_text_publish(s3_keys: iter,
-                                     pulsar_topic: str = "extract_text",
-                                     pulsar_connection_string: str = "pulsar://localhost:6650"):
+def s3_files_to_extract_text_publish(s3_keys: iter, producer_pool: dict):
     """
 
     :param s3_keys:
-    :param pulsar_topic:
-    :param pulsar_connection_string:
+    :param producer_pool:
     :return:
     """
-    client = pulsar.Client(pulsar_connection_string)
-    try:
-        producer = client.create_producer(topic=pulsar_topic,
-                                          message_routing_mode=pulsar.PartitionsRoutingMode.RoundRobinDistribution)
-        i = 1
-        total = len(s3_keys)
-        for payload in s3_keys:
-            msg = json.dumps(payload).encode('utf-8')
-            producer.send(msg)
-            _logger.info("Published {i} of {total} messages to {topic}".format(i=i, total=total, topic=pulsar_topic))
-    finally:
-        client.close()
+    i = 1
+    total = len(s3_keys)
+    for payload in s3_keys:
+        key = payload['key']
+        form_type = key.split('|')[1]
+        pulsar_topic = "extract-text-{form_type}".format(form_type=form_type.replace('/', '-'))
+        producer = producer_pool[form_type]
+        msg = json.dumps(payload).encode('utf-8')
+        producer.send(msg)
+
+        _logger.info("Published {i} of {total} messages to {topic}".format(i=i, total=total, topic=pulsar_topic))
+        i += 1
 
 
-def extract_text_by_form_types(cik: str, form_types: str, date_str: str, bucket: str, pulsar_topic: str,
-                               pulsar_connection_string: str):
+def extract_text_by_form_types(cik: str, form_types: str, date_str: str, bucket: str,
+                               producer_pool: dict):
     """
 
     :param cik:
     :param form_types:
     :param date_str:
     :param bucket:
-    :param pulsar_topic:
-    :param pulsar_connection_string:
+    :param producer_pool:
     :return:
     """
     for form_type in form_types.split(','):
         s3_keys = fetch_s3_keys(cik=cik, form_type=form_type, date_str=date_str, bucket=bucket)
-        s3_files_to_extract_text_publish(s3_keys=s3_keys,
-                                         pulsar_topic=pulsar_topic,
-                                         pulsar_connection_string=pulsar_connection_string)
+        s3_files_to_extract_text_publish(s3_keys=s3_keys, producer_pool=producer_pool)
 
 
 def parse_args(args):
@@ -146,9 +142,16 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(
         description="")
-    parser.add_argument(dest="cik",
+
+    parser.add_argument("-cik_file",
+                        help="A file containing a list of cik to process",
+                        type=str,
+                        default='cik.txt')
+
+    parser.add_argument("-cik",
                         help="CIK number of the company to extract text from",
-                        type=str)
+                        type=str,
+                        default='')
 
     parser.add_argument("-fts",
                         "--form_types",
@@ -161,17 +164,11 @@ def parse_args(args):
                         help="The filing date to pull filings from YYYYMMDD format",
                         type=str)
 
-    parser.add_argument("-pt",
-                        "--pulsar_topic",
-                        help="Pulsar topic to publish to",
-                        type=str,
-                        default='extract_text')
-
     parser.add_argument("-pcs",
                         "--pulsar_connection_string",
                         help="Pulsar connection string e.g. pulsar://localhost:6650",
                         type=str,
-                        default="pulsar://ip-10-0-0-11.ec2.internal:6650,pulsar://ip-10-0-0-12.ec2.internal:6650,pulsar://ip-10-0-0-13.ec2.internal:6650")
+                        default="pulsar://10.0.0.11:6650,pulsar://10.0.0.12:6650,pulsar://10.0.0.13:6650")
 
     parser.add_argument("-bkt",
                         "--bucket",
@@ -214,9 +211,57 @@ def main(args):
       args ([str]): command line parameter list
     """
     args = parse_args(args)
-    setup_logging(args.loglevel)
-    extract_text_by_form_types(cik=args.cik, form_types=args.form_types, date_str=args.filing_date, bucket=args.bucket,
-                               pulsar_topic=args.pulsar_topic, pulsar_connection_string=args.pulsar_connection_string)
+    if args.loglevel:
+        setup_logging(args.loglevel)
+    else:
+        setup_logging(loglevel=logging.WARNING)
+    client = pulsar.Client(args.pulsar_connection_string)
+
+    producer_pool = {}
+    for form_type in DEFAULT_FORM_TYPES:
+        pulsar_topic = "extract-text-{form_type}".format(form_type=form_type.replace('/', '-'))
+        producer = client.create_producer(topic=pulsar_topic,
+                                          block_if_queue_full=True,
+                                          batching_enabled=True,
+                                          send_timeout_millis=300000,
+                                          batching_max_publish_delay_ms=120000
+                                          #,message_routing_mode= pulsar.PartitionsRoutingMode.RoundRobinDistribution
+                                          )
+        producer_pool[form_type] = producer
+
+    cik_que = Queue()
+    try:
+        if args.cik != "":
+            extract_text_by_form_types(cik=args.cik, form_types=args.form_types, date_str=args.filing_date,
+                                       bucket=args.bucket,
+                                       producer_pool=producer_pool)
+        else:
+            count_lines = 0
+            with open(args.cik_file, 'r') as cik_file:
+                for line in cik_file:
+                    cik_que.put(line.strip())
+                    count_lines += 1
+
+            i = 1
+            while not cik_que.empty():
+                cik = cik_que.get()
+                _logger.log(logging.CRITICAL,
+                            "Processing {i} of {total} on {cik} from file {file}".format(i=i,
+                                                                                         cik=cik,
+                                                                                         total=count_lines,
+                                                                                         file=args.cik_file))
+                extract_text_by_form_types(cik=cik.strip(), form_types=args.form_types, date_str=args.filing_date,
+                                           bucket=args.bucket, producer_pool=producer_pool)
+                i += 1
+        _logger.log(logging.CRITICAL, "Publishing CIK complete")
+    finally:
+        if not cik_que.empty():
+            _logger.log(logging.CRITICAL, "Incomplete processing dumping remaining ciks")
+            ciks = list(cik_que.queue)
+            with open("remaining_{0}".format(args.cik_file), 'w') as remaining_cik_file:
+                remaining_cik_file.write('\n'.join(ciks))
+
+        client.close()
 
 
 def run():
