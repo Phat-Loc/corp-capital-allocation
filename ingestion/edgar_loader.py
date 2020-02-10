@@ -20,6 +20,7 @@ import shutil
 __author__ = "Phat Loc"
 __copyright__ = "Phat Loc"
 __license__ = "mit"
+__version__ = "0.0.1"
 
 _logger = logging.getLogger(__name__)
 
