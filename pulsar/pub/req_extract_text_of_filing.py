@@ -12,54 +12,57 @@ __license__ = "mit"
 
 _logger = logging.getLogger(__name__)
 
-DEFAULT_FORM_TYPES = ['8-K',
-                      '8-K/A',
-                      'SC 13D',
-                      'SC 13D/A',
-                      'SC 13E3',
-                      'SC 13E3/A',
-                      '10-Q',
-                      '10-Q/A',
-                      '10-K',
-                      '10-K/A',
-                      'DEF 14A',
-                      'DEF 14C',
-                      'DEFA14C',
-                      'DEFC14A',
-                      'DEFC14C',
-                      'DEFM14A',
-                      'DEFM14C',
-                      'DEFN14A',
-                      'DEFR14A',
-                      'DEFR14C',
-                      'DEL AM',
-                      'DFAN14A',
-                      'DFRN14A',
-                      'SC 14D9',
-                      'SC 14D9/A',
-                      'SC 14F1',
-                      'SC 14F1/A',
-                      'SC TO-C',
-                      'SC TO-I',
-                      'SC TO-I/A',
-                      'SC TO-T',
-                      'SC TO-T/A',
-                      'SC13E4F',
-                      'SC13E4F/A',
-                      'SC14D1F',
-                      'SC14D1F/A',
-                      'SC14D9C',
-                      '424A',
-                      '424B1',
-                      '424B2',
-                      '424B3',
-                      '424B4',
-                      '424B5',
-                      '424B7',
-                      '424B8',
-                      '425',
-                      'CB',
-                      'CB/A']
+DEFAULT_FORM_TYPES = [
+    '8-K',
+    '8-K/A',
+    '10-Q',
+    '10-Q/A',
+    '10-K',
+    '10-K/A',
+    '6-K',
+    '11-K',
+    'SC 13D',
+    'SC 13D/A',
+    'SC 13E3',
+    'SC 13E3/A',
+    'DEF 14A',
+    'DEF 14C',
+    'DEFA14C',
+    'DEFC14A',
+    'DEFC14C',
+    'DEFM14A',
+    'DEFM14C',
+    'DEFN14A',
+    'DEFR14A',
+    'DEFR14C',
+    'DEL AM',
+    'DFAN14A',
+    'DFRN14A',
+    'SC 14D9',
+    'SC 14D9/A',
+    'SC 14F1',
+    'SC 14F1/A',
+    'SC TO-C',
+    'SC TO-I',
+    'SC TO-I/A',
+    'SC TO-T',
+    'SC TO-T/A',
+    'SC13E4F',
+    'SC13E4F/A',
+    'SC14D1F',
+    'SC14D1F/A',
+    'SC14D9C',
+    '424A',
+    '424B1',
+    '424B2',
+    '424B3',
+    '424B4',
+    '424B5',
+    '424B7',
+    '424B8',
+    '425',
+    'CB',
+    'CB/A']
 
 
 def fetch_s3_keys(cik: str = "315852", form_type: str = "8-K", date_str: str = "20191024",
@@ -106,7 +109,7 @@ def s3_files_to_extract_text_publish(s3_keys: iter, producer_pool: dict):
     for payload in s3_keys:
         key = payload['key']
         form_type = key.split('|')[1]
-        pulsar_topic = "extract-text-{form_type}".format(form_type=form_type.replace('/', '-'))
+        pulsar_topic = "extract-text-{form_type}".format(form_type=form_type.replace('/', '-').replace(' ', '-'))
         producer = producer_pool[form_type]
         msg = json.dumps(payload).encode('utf-8')
         producer.send(msg)
@@ -225,7 +228,6 @@ def main(args):
                                           batching_enabled=True,
                                           send_timeout_millis=300000,
                                           batching_max_publish_delay_ms=120000
-                                          #,message_routing_mode= pulsar.PartitionsRoutingMode.RoundRobinDistribution
                                           )
         producer_pool[form_type] = producer
 

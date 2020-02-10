@@ -27,55 +27,57 @@ NLTK_TOKENIZER = nltk.data.load('tokenizers/punkt/english.pickle')
 
 __els_init__ = False
 
-
-DEFAULT_FORM_TYPES = ['8-K',
-                      '8-K/A',
-                      'SC 13D',
-                      'SC 13D/A',
-                      'SC 13E3',
-                      'SC 13E3/A',
-                      '10-Q',
-                      '10-Q/A',
-                      '10-K',
-                      '10-K/A',
-                      'DEF 14A',
-                      'DEF 14C',
-                      'DEFA14C',
-                      'DEFC14A',
-                      'DEFC14C',
-                      'DEFM14A',
-                      'DEFM14C',
-                      'DEFN14A',
-                      'DEFR14A',
-                      'DEFR14C',
-                      'DEL AM',
-                      'DFAN14A',
-                      'DFRN14A',
-                      'SC 14D9',
-                      'SC 14D9/A',
-                      'SC 14F1',
-                      'SC 14F1/A',
-                      'SC TO-C',
-                      'SC TO-I',
-                      'SC TO-I/A',
-                      'SC TO-T',
-                      'SC TO-T/A',
-                      'SC13E4F',
-                      'SC13E4F/A',
-                      'SC14D1F',
-                      'SC14D1F/A',
-                      'SC14D9C',
-                      '424A',
-                      '424B1',
-                      '424B2',
-                      '424B3',
-                      '424B4',
-                      '424B5',
-                      '424B7',
-                      '424B8',
-                      '425',
-                      'CB',
-                      'CB/A']
+DEFAULT_FORM_TYPES = [
+    '8-K',
+    '8-K/A',
+    '10-Q',
+    '10-Q/A',
+    '10-K',
+    '10-K/A',
+    '6-K',
+    '11-K',
+    'SC 13D',
+    'SC 13D/A',
+    'SC 13E3',
+    'SC 13E3/A',
+    'DEF 14A',
+    'DEF 14C',
+    'DEFA14C',
+    'DEFC14A',
+    'DEFC14C',
+    'DEFM14A',
+    'DEFM14C',
+    'DEFN14A',
+    'DEFR14A',
+    'DEFR14C',
+    'DEL AM',
+    'DFAN14A',
+    'DFRN14A',
+    'SC 14D9',
+    'SC 14D9/A',
+    'SC 14F1',
+    'SC 14F1/A',
+    'SC TO-C',
+    'SC TO-I',
+    'SC TO-I/A',
+    'SC TO-T',
+    'SC TO-T/A',
+    'SC13E4F',
+    'SC13E4F/A',
+    'SC14D1F',
+    'SC14D1F/A',
+    'SC14D9C',
+    '424A',
+    '424B1',
+    '424B2',
+    '424B3',
+    '424B4',
+    '424B5',
+    '424B7',
+    '424B8',
+    '425',
+    'CB',
+    'CB/A']
 
 
 def load_word_file(word_file: str):
@@ -119,12 +121,13 @@ def extract_sentences(raw_filing_content: str, bs4_parser: str = 'lxml'):
         for line in lines:
             nltk_sentences = NLTK_TOKENIZER.tokenize(line)
             for st in nltk_sentences:
-                for sentence in re.split(r'[.?!]\s?(?=[A-Z])', st):
-                    if len(sentence) > 0:
-                        if sentence.endswith('.'):
-                            yield sentence
-                        else:
-                            yield sentence + '.'
+                for bullet_points in st.split(u"\u25AA", st):
+                    for sentence in re.split(r'[.?!)]\s?(?=[A-Z])', bullet_points):
+                        if len(sentence) > 0:
+                            if sentence.endswith('.'):
+                                yield sentence
+                            else:
+                                yield sentence + '.'
 
     # return list(lines_remove_chars)
     sentences = list(break_lines_into_sentences(lines_remove_chars))
@@ -304,7 +307,9 @@ def parse_args(args):
                         "--pulsar_topics",
                         help="comma separated values of topic names",
                         type=str,
-                        default="extract-text-8-K,extract-text-8-K-A,extract-text-10-K,extract-text-10-K-A,extract-text-10-Q,extract-text-10-Q-A")
+                        # default="extract-text-8-K,extract-text-8-K-A,extract-text-10-K,extract-text-10-K-A,extract-text-10-Q,extract-text-10-Q-A"
+                        default="extract-text-.*"
+                        )
 
     parser.add_argument("-pcs",
                         "--pulsar_connection_string",
@@ -374,5 +379,5 @@ def run():
 
 
 if __name__ == "__main__":
-    ENGLISH_WORDS = load_word_file('../deps/words/en')
+    ENGLISH_WORDS = load_word_file('words/en')
     run()
