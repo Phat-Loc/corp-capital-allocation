@@ -103,7 +103,8 @@ def get_stock_quotes_hist_from_es(symbol: str = 'LPG', es: elasticsearch.Elastic
     init_stock_quotes_hist_idx(es)
     s = Search(using=es, index="stock_quotes_hist") \
         .filter("term", symbol=symbol) \
-        .sort({"as_of_date": {"order": "asc"}})
+        .sort({"as_of_date": {"order": "asc"}}) \
+        .params(request_timeout=300)
 
     if 0 == s.count():
         return
