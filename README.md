@@ -13,7 +13,7 @@ Changes usually signal either financial stress or new found freedom.
 However detecting the signal requires natural language processing. 
 Fortune reads the text of the filings and creates a timeline of capital allocation decisions.  
 This is the project that I complete during at Insight Data Engineering program (New York, Winter 2019).
-Try it out at https://dataengine.xyz/ or watch it here.
+Try it out at https://dataengine.xyz/ or watch it [here](https://youtu.be/5zVsLcuiicE).
 
 The ideal output of the system is the manually annotated chart below. 
 There are 3 distinct capital allocation periods for Dorian LPG. 
