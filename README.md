@@ -35,10 +35,10 @@ The edgar_loader.py in ingestion handles downloading the files from SEC Edgar an
 ![Processing Funnel](docs/processing_funnel.png)
 
 The entire processing pipeline is implemented using Pulsar topics. 
-This an message driven system where each part can be dynamically scaled up or down based on load.
+This is a message driven system where each part can be dynamically scaled up or down based on load.
 Within the pulsar folder there are 3 sub-folders:
 1. pub - Source of messages that trigger the start of data processing
-2. transformer - Workers that transform data
+2. transformer - Workers that transform messages
 3. sink - Workers that save results into Elasticsearch
 
 There are 3 distinct stages to my pipeline. The first is turning raw filings into indexed sentences. 
@@ -58,16 +58,16 @@ create_timeline.py processing the raw classification into time periods.
 
 There isn't a one size fit all deployment. The following is how I deployed the system while at Insight
 
-1. 3 EC2 machines with both Pulsar and Elasticsearch installed. I default it to using private static ips of 
-10.0.0.11, 10.0.0.12, 10.0.0.13
-2. The pipeline varied from 1 to 7 EC2 machines depending my load at the time
+1. 3 EC2 machines with both Pulsar and Elasticsearch installed. The default is to use private static ips of 
+10.0.0.11, 10.0.0.12, 10.0.0.13 but you can override it with command line args
+2. The pipeline EC2 usage varied from 1 to 7 machines depending my load at the time
 
 Here are the prerequisites
 
-1. Train your own [Spacy](https://spacy.io/) classifier and name it corp_alloc_bal sentence_classifier.py loads that
+1. Train your own [Spacy](https://spacy.io/) classifier and name it corp_alloc_bal which the sentence_classifier.py loads
 2. I use stock quotes from [IEX Cloud](https://iexcloud.io/)
-3. Use [Anaconda](https://www.anaconda.com/distribution/) to setup the virtual env on your EC2 machines. 
-The actual env requirement varies by which component of the pipeline you want to run on which machine. 
+3. Use [Anaconda](https://www.anaconda.com/distribution/) to setup the virtual env on your EC2 machines.
+The actual env requirement varies by which component of the pipeline you want to run on which machine.
 The NLP classification is memory intensive.
 4. Use pulsar/process_governer.py for self healing. Worker processes do crash but the governer restarts them. 
 Unacked messages get replayed so you continue where you left off.
