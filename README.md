@@ -19,23 +19,20 @@ The ideal output of the system is the manually annotated chart below.
 There are 3 distinct capital allocation periods for Dorian LPG. 
 Each of the periods with a clearly visible difference in trend and volatility in the stock price.
 
-![LPG Human Viz]
-(docs/lpg_human_visualization.png)
+![LPG Human Viz](docs/lpg_human_visualization.png)
 
 
 The machine annotated version still needs work but overall the framework is there to do NLP at scale. 
 The machine did pick up the hostile take over bid from BW LPG during the summer of 2018. 
 Also management's concern that it would happen in 2016 and 2017.
   
-![LPG Machine Viz]
-(docs/lpg_machine_visualization.png)
+![LPG Machine Viz](docs/lpg_machine_visualization.png)
 
 ## Ingestion - Turn raw filings into individual sentences index in Elasticsearch
 
 The edgar_loader.py in ingestion handles downloading the files from SEC Edgar and saving it to S3 to feed the pipeline.
 
-![Processing Funnel]
-(docs/processing_funnel.png)
+![Processing Funnel](docs/processing_funnel.png)
 
 The entire processing pipeline is implemented using Pulsar topics. 
 This an message driven system where each part can be dynamically scaled up or down based on load.
@@ -55,8 +52,7 @@ The second stage of transforming sentences into a timeline is handled by
 The final stage is trigger by using corp_cmd.py but publishing to *create-timeline* topic and
 create_timeline.py processing the raw classification into time periods. 
 
-![Processing Funnel]
-(docs/pipeline.png)
+![Processing Funnel](docs/pipeline.png)
 
 ## Installation
 
