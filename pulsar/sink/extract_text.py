@@ -22,7 +22,6 @@ __version__ = "0.0.1"
 
 _logger = logging.getLogger(__name__)
 
-ENGLISH_WORDS = None
 NLTK_TOKENIZER = nltk.data.load('tokenizers/punkt/english.pickle')
 
 __els_init__ = False
@@ -90,6 +89,9 @@ def load_word_file(word_file: str):
         return set(f.read().split('\n'))
 
 
+ENGLISH_WORDS = load_word_file('words/en')
+
+
 def extract_sentences(raw_filing_content: str, bs4_parser: str = 'lxml'):
     """
     Takes the raw filing content of the file and extracts sentences from it
@@ -121,7 +123,7 @@ def extract_sentences(raw_filing_content: str, bs4_parser: str = 'lxml'):
         for line in lines:
             nltk_sentences = NLTK_TOKENIZER.tokenize(line)
             for st in nltk_sentences:
-                for bullet_points in st.split(u"\u25AA", st):
+                for bullet_points in st.split(u"\u25AA"):
                     for sentence in re.split(r'[.?!)]\s?(?=[A-Z])', bullet_points):
                         if len(sentence) > 0:
                             if sentence.endswith('.'):
@@ -275,7 +277,7 @@ def extract_text_subscribe(es: elasticsearch.Elasticsearch,
         client.close()
 
 
-def process_filing_local_dir(filing_dir: str = "/home/ploc/edgar/RRC"):
+def process_filing_local_dir(filing_dir: str = "edgar/RRC"):
     """
 
     :param filing_dir:
@@ -379,5 +381,5 @@ def run():
 
 
 if __name__ == "__main__":
-    ENGLISH_WORDS = load_word_file('words/en')
+    # ENGLISH_WORDS = load_word_file('words/en')
     run()

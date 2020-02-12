@@ -43,7 +43,7 @@ def map_filing_to_downloaded_path(filings_dir: str):
     return filings
 
 
-def download_single_day_filings(year: int, quarter: int, filing_date: str, data_dir: str = '/home/ploc/edgar'):
+def download_single_day_filings(year: int, quarter: int, filing_date: str, data_dir: str = 'edgar'):
     """
 
     :param year:
@@ -78,7 +78,7 @@ def download_single_day_filings(year: int, quarter: int, filing_date: str, data_
 
 
 def download_and_store_single_day(year: int, quarter: int, filing_date: str,
-                                  bucket: str = 'dataengine-xyz-edgar-raw-data', data_dir: str = '/home/ploc/edgar'):
+                                  bucket: str = 'dataengine-xyz-edgar-raw-data', data_dir: str = 'edgar'):
     """
     Downloads and stores a single day of SEC filings to S3
     Args:
@@ -163,7 +163,7 @@ def crawl_year_and_quarter(year: int, quarter: int):
 
 
 def store_a_quarter_of_filings(year: int, quarter: int, bucket: str = 'dataengine-xyz-edgar-raw-data',
-                               data_dir: str = '/home/ploc/edgar'):
+                               data_dir: str = 'edgar'):
     """
 
     Args:

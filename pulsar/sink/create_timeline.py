@@ -43,22 +43,13 @@ def init_els_index(es: elasticsearch.Elasticsearch):
         es.indices.create(index="corp_timeline", body=text_line_def)
 
 
-def create_timeline(es: elasticsearch.Elasticsearch, cik: int):
+def do_create_timeline(cik: int, docs: list):
     """
 
-    :param es:
     :param cik:
+    :param docs:
     :return:
     """
-    # something is wrong with sorting in elasticsearch
-    # s = Search(using=es, index="cap_alloc_event") \
-    #     .filter("term", cik=cik) \
-    #     .sort('cik', 'as_of_date')
-
-    s = Search(using=es, index="cap_alloc_event") \
-        .filter("term", cik=cik)
-
-    unique_sentences = set()
 
     def score_event(search_term_category: str, capital_allocation: dict, min_prob: float = 0.7):
         """
@@ -91,9 +82,7 @@ def create_timeline(es: elasticsearch.Elasticsearch, cik: int):
     timeline = {"cik": cik}
     current_period = None
     timeline_periods = []
-
-    docs = [doc for doc in s.scan()]
-    docs.sort(key=lambda doc: date.fromisoformat(doc['as_of_date']))
+    unique_sentences = set()
 
     for corp_alloc_event in docs:
         # There are duplicate sentences
@@ -103,7 +92,10 @@ def create_timeline(es: elasticsearch.Elasticsearch, cik: int):
             as_of_date = corp_alloc_event['as_of_date']
             # print("{0}: {1}".format(as_of_date, sentence))
             search_term_category = corp_alloc_event['search_term_category']
-            capital_allocation = corp_alloc_event['capital_allocation'].to_dict()
+            if isinstance(corp_alloc_event['capital_allocation'], dict):
+                capital_allocation = corp_alloc_event['capital_allocation']
+            else:
+                capital_allocation = corp_alloc_event['capital_allocation'].to_dict()
 
             if current_period is None:
                 timeline["first_date"] = as_of_date
@@ -138,6 +130,26 @@ def create_timeline(es: elasticsearch.Elasticsearch, cik: int):
     return timeline
 
 
+def create_timeline(es: elasticsearch.Elasticsearch, cik: int):
+    """
+
+    :param es:
+    :param cik:
+    :return:
+    """
+    # something is wrong with sorting in elasticsearch
+    # s = Search(using=es, index="cap_alloc_event") \
+    #     .filter("term", cik=cik) \
+    #     .sort('cik', 'as_of_date')
+
+    s = Search(using=es, index="cap_alloc_event") \
+        .filter("term", cik=cik)
+
+    docs = [doc for doc in s.scan()]
+    docs.sort(key=lambda doc: date.fromisoformat(doc['as_of_date']))
+    return do_create_timeline(cik, docs)
+
+
 def create_timeline_subscribe(es: elasticsearch.Elasticsearch,
                               sub_topic: str = "cap-alloc-event",
                               pulsar_connection_string: str = "pulsar://localhost:6650"):
@@ -154,8 +166,6 @@ def create_timeline_subscribe(es: elasticsearch.Elasticsearch,
     consumer_name = "pid: {pid} on {hostname}".format(pid=os.getpid(), hostname=socket.gethostname())
     consumer = client.subscribe(topic=sub_topic,
                                 subscription_name=subscription,
-                                receiver_queue_size=1,
-                                max_total_receiver_queue_size_across_partitions=1,
                                 consumer_type=pulsar.ConsumerType.Shared,
                                 initial_position=pulsar.InitialPosition.Earliest,
                                 consumer_name=consumer_name)
